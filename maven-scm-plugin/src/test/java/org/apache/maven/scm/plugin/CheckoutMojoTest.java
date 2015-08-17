@@ -176,4 +176,17 @@ public class CheckoutMojoTest
         assertEquals( "testphrase", repo.getPassphrase() );
     }
 
+    public void testCheckoutViaGAV()
+        throws Exception
+    {
+        getContainer().getLogger().error( "################## testCheckoutViaGAV ##################" );
+
+        File pom = getTestFile( "src/test/resources/mojos/checkout/checkoutViaGAV.xml");
+        CheckoutMojo mojo = (CheckoutMojo) lookupMojo( "checkout", pom );
+        mojo.execute();
+
+        assertEquals("scm:svn:https://svn.apache.org/repos/asf/maven/plugins/trunk/maven-clean-plugin", mojo.getConnectionUrl());
+
+    }
+
 }

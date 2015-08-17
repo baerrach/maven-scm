@@ -217,6 +217,11 @@ public abstract class AbstractScmMojo
         this.connectionType = connectionType;
     }
 
+    protected String getConnectionType()
+    {
+        return this.connectionType;
+    }
+
     public String getConnectionUrl()
     {
         boolean requireDeveloperConnection = !"connection".equals( connectionType.toLowerCase() );
@@ -241,6 +246,11 @@ public abstract class AbstractScmMojo
     public void setConnectionUrl( String connectionUrl )
     {
         this.connectionUrl = connectionUrl;
+    }
+
+    public void setDeveloperConnectionUrl( String developerConnectionUrl )
+    {
+        this.developerConnectionUrl = developerConnectionUrl;
     }
 
     public File getWorkingDirectory()

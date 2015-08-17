@@ -30,6 +30,7 @@ import org.apache.maven.scm.ScmFileSet;
 import org.apache.maven.scm.ScmResult;
 import org.apache.maven.scm.repository.ScmRepository;
 import org.codehaus.plexus.util.FileUtils;
+import org.codehaus.plexus.util.StringUtils;
 
 /**
  * Get a fresh copy of the latest source from the configured scm url.
@@ -71,6 +72,12 @@ public class CheckoutMojo
     private String scmVersion;
 
     /**
+     * The GAV to locate the pom's SCM developerConnection
+     */
+    @Parameter( property = "gav" )
+    private String gav;
+
+    /**
      * allow extended mojo (ie BootStrap ) to see checkout result
      */
     private ScmResult checkoutResult;
@@ -79,6 +86,11 @@ public class CheckoutMojo
     public void execute()
         throws MojoExecutionException
     {
+        if ( StringUtils.isNotEmpty( gav ) )
+        {
+            setConnectionUrlFromGAV();
+        }
+
         super.execute();
 
         //skip checkout if checkout directory is already created. See SCM-201
@@ -87,6 +99,11 @@ public class CheckoutMojo
         {
             checkoutResult = checkout();
         }
+    }
+
+    protected void setConnectionUrlFromGAV()
+    {
+        setDeveloperConnectionUrl( "scm:svn:https://svn.apache.org/repos/asf/maven/plugins/trunk/maven-clean-plugin" );
     }
 
     protected File getCheckoutDirectory()
