@@ -337,6 +337,7 @@
               <exclude>.gitignore</exclude>
               <exclude>README.txt</exclude>
               <exclude>*.sh</exclude>
+              <exclude>.checkstyle</exclude>
               <exclude>.git/**</exclude>
               <exclude>.idea/**</exclude>
               <exclude>**/generated-sources/**</exclude>

@@ -3,6 +3,7 @@ atlassian-ide-plugin.xml
 *.iml
 *.iws
 target
+.checkstyle
 .classpath
 .project
 .settings
