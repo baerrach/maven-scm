@@ -24,9 +24,10 @@
         <artifactId>maven-scm-plugin</artifactId>
         <configuration>
           <settings implementation="org.apache.maven.settings.Settings"/>
+          <localRepository>${localRepository}</localRepository>
           <connectionType>developerConnection</connectionType>
-          <checkoutDirectory>target/checkout-via-gav</checkoutDirectory>
-          <gav>org.apache.maven.plugins:maven-clean-plugin</gav>
+          <checkoutDirectory>target/checkout-via-artifact_coords</checkoutDirectory>
+          <artifactCoords>org.apache.maven.plugins:maven-clean-plugin:2.5</artifactCoords>
         </configuration>
       </plugin>
     </plugins>

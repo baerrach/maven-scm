@@ -20,11 +20,22 @@ package org.apache.maven.scm.plugin;
  */
 
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
+import java.util.List;
 
+import org.apache.maven.artifact.Artifact;
+import org.apache.maven.artifact.factory.ArtifactFactory;
+import org.apache.maven.artifact.repository.ArtifactRepository;
+import org.apache.maven.artifact.resolver.AbstractArtifactResolutionException;
+import org.apache.maven.artifact.resolver.ArtifactResolver;
+import org.apache.maven.model.Model;
+import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
 import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugins.annotations.Component;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.project.MavenProject;
 import org.apache.maven.scm.ScmException;
 import org.apache.maven.scm.ScmFileSet;
 import org.apache.maven.scm.ScmResult;
@@ -41,6 +52,21 @@ import org.codehaus.plexus.util.StringUtils;
 public class CheckoutMojo
     extends AbstractScmMojo
 {
+    @Component
+    private ArtifactFactory artifactFactory;
+
+    @Component
+    private ArtifactResolver artifactResolver;
+
+    @Parameter( defaultValue = "${localRepository}", readonly = true )
+    private ArtifactRepository localRepository;
+    
+    @Parameter( defaultValue = "${project.repositories}", readonly = true, required = true )
+    protected List<ArtifactRepository> remoteRepositories;    
+    
+    @Parameter( defaultValue = "${project}", readonly = true, required = true )
+    protected MavenProject project;
+    
     /**
      * Use Export instead of checkout
      */
@@ -70,12 +96,14 @@ public class CheckoutMojo
      */
     @Parameter( property = "scmVersion" )
     private String scmVersion;
-
+    
     /**
-     * The GAV to locate the pom's SCM developerConnection
+     * The {@code <groupId>:<artifactId>[:<extension>[:<classifier>]]:<version>} of the artifact's SCM to checkout
+     * 
+     * @readonly
+     * @parameter expression="${artifactCoords}"
      */
-    @Parameter( property = "gav" )
-    private String gav;
+    private String artifactCoords;
 
     /**
      * allow extended mojo (ie BootStrap ) to see checkout result
@@ -86,9 +114,9 @@ public class CheckoutMojo
     public void execute()
         throws MojoExecutionException
     {
-        if ( StringUtils.isNotEmpty( gav ) )
+        if ( StringUtils.isNotEmpty( artifactCoords ) )
         {
-            setConnectionUrlFromGAV();
+            setConnectionUrlFromArtifactCoords();
         }
 
         super.execute();
@@ -101,9 +129,68 @@ public class CheckoutMojo
         }
     }
 
-    protected void setConnectionUrlFromGAV()
+    protected void setConnectionUrlFromArtifactCoords() throws MojoExecutionException
     {
-        setDeveloperConnectionUrl( "scm:svn:https://svn.apache.org/repos/asf/maven/plugins/trunk/maven-clean-plugin" );
+        String groupId = null;
+        String artifactId = null;
+        String version = null;
+        String[] tokens = StringUtils.split( artifactCoords, ":" );
+        if ( tokens.length < 2 || tokens.length > 5 )
+        {
+            throw new MojoExecutionException(
+                "Invalid artifact, you must specify groupId:artifactId[:version][:packaging][:classifier] "
+                    + artifactCoords );
+        }
+        groupId = tokens[0];
+        artifactId = tokens[1];
+        if ( tokens.length >= 3 ) 
+        {
+            version = tokens[2];
+        }
+        else 
+        {
+            version = "LATEST";
+        }
+        
+        Artifact toDownload = artifactFactory.createProjectArtifact( groupId, artifactId, version );
+        getLog().info( "remoteRepositories=" + remoteRepositories );
+        getLog().info( "localRepository=" + localRepository );
+        try
+        {
+            artifactResolver.resolve( toDownload, remoteRepositories, localRepository );
+        }
+        catch ( AbstractArtifactResolutionException  e )
+        {
+            throw new MojoExecutionException( "Couldn't download artifact: " + e.getMessage(), e );
+        }
+        File pomfile = toDownload.getFile();
+        
+        Model model = null;
+        FileReader reader = null;
+        MavenXpp3Reader mavenreader = new MavenXpp3Reader();
+        try
+        {
+            reader = new FileReader( pomfile );
+            model = mavenreader.read( reader );
+        }
+        catch ( Exception e )
+        {           
+            throw new MojoExecutionException( "Could not load pom file=" + pomfile, e );
+        }
+        finally 
+        {
+            try
+            {
+                reader.close();
+            }
+            catch ( IOException e )
+            {
+                getLog().warn( "Failed to close reader: " + e.getMessage(), e );
+            }
+        }
+        
+        MavenProject project = new MavenProject( model );        
+        setDeveloperConnectionUrl( project.getScm().getDeveloperConnection() );
     }
 
     protected File getCheckoutDirectory()
