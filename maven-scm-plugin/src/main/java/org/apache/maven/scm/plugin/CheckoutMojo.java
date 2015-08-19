@@ -99,10 +99,8 @@ public class CheckoutMojo
     
     /**
      * The {@code <groupId>:<artifactId>[:<extension>[:<classifier>]]:<version>} of the artifact's SCM to checkout
-     * 
-     * @readonly
-     * @parameter expression="${artifactCoords}"
      */
+    @Parameter( property = "artifactCoords", readonly = true )
     private String artifactCoords;
 
     /**
