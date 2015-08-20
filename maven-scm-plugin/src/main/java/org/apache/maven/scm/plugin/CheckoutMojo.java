@@ -61,7 +61,7 @@ public class CheckoutMojo
     @Parameter( defaultValue = "${localRepository}", readonly = true )
     private ArtifactRepository localRepository;
     
-    @Parameter( defaultValue = "${project.repositories}", readonly = true, required = true )
+    @Parameter( defaultValue = "${project.remoteArtifactRepositories}", readonly = true, required = true )
     protected List<ArtifactRepository> remoteRepositories;    
     
     @Parameter( defaultValue = "${project}", readonly = true, required = true )
@@ -149,10 +149,14 @@ public class CheckoutMojo
         {
             version = "LATEST";
         }
-        
+       
+        getLog().info( "remoteRepositories= FOO!" );
+        for ( int i = 0; i < remoteRepositories.size(); i++ ) 
+        {
+          getLog().info( "remoteRepositories[ " + i + "]=" + remoteRepositories.get( i ).getClass().toString() );
+        }
+        getLog().info( "localRepository=" + localRepository.getClass().toString() );
         Artifact toDownload = artifactFactory.createProjectArtifact( groupId, artifactId, version );
-        getLog().info( "remoteRepositories=" + remoteRepositories );
-        getLog().info( "localRepository=" + localRepository );
         try
         {
             artifactResolver.resolve( toDownload, remoteRepositories, localRepository );

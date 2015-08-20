@@ -17,5 +17,25 @@
  * under the License.
  */
 
+import java.io.FileReader;
+
+import org.apache.maven.model.Model;
+import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
+import org.apache.maven.project.MavenProject;
+
 File buildLog = new File(basedir, 'build.log')
 assert buildLog.exists()
+
+File checkoutDirectory = new File(basedir, "maven-clean-plugin")
+assert checkoutDirectory.exists()
+
+File checkedOutPom = new File( checkoutDirectory, "pom.xml" );
+assert checkedOutPom.exists()
+
+MavenXpp3Reader mavenreader = new MavenXpp3Reader();
+FileReader reader = new FileReader( checkedOutPom );
+Model model = mavenreader.read( reader );
+MavenProject project = new MavenProject( model );
+assert "org.apache.maven.plugins" == project.getGroupId()
+assert "maven-clean-plugin" == project.getArtifactId()
+assert "2.5" == project.getVersion()
