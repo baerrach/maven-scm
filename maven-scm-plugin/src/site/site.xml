@@ -34,6 +34,7 @@
 
     <menu name="Examples">
       <item name="Bootstrapping a Project Using a POM" href="examples/bootstrapping-with-pom.html"/>
+      <item name="Checking out a project via artifact coordinates" href="examples/checkout-via-artifact-coords.html"/>
       <item name="Other SCM Commands" href="examples/scm-advance-features.html"/>
     </menu>
 

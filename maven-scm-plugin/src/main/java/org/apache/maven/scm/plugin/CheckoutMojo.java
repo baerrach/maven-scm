@@ -99,6 +99,10 @@ public class CheckoutMojo
     
     /**
      * The {@code <groupId>:<artifactId>[:<extension>[:<classifier>]]:<version>} of the artifact's SCM to checkout
+     * 
+     * Only used for checking out via artifact coords.
+     * 
+     * @since 1.9.5
      */
     @Parameter( property = "artifactCoords", readonly = true )
     private String artifactCoords;
