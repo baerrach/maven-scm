@@ -154,12 +154,6 @@ public class CheckoutMojo
             version = "LATEST";
         }
        
-        getLog().info( "remoteRepositories= FOO!" );
-        for ( int i = 0; i < remoteRepositories.size(); i++ ) 
-        {
-          getLog().info( "remoteRepositories[ " + i + "]=" + remoteRepositories.get( i ).getClass().toString() );
-        }
-        getLog().info( "localRepository=" + localRepository.getClass().toString() );
         Artifact toDownload = artifactFactory.createProjectArtifact( groupId, artifactId, version );
         try
         {
