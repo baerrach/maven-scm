@@ -189,8 +189,11 @@ public class CheckoutMojo
             }
         }
         
-        MavenProject project = new MavenProject( model );        
+        MavenProject project = new MavenProject( model );
+        setConnectionUrl( project.getScm().getConnection() );
         setDeveloperConnectionUrl( project.getScm().getDeveloperConnection() );
+        getLog().debug( "Reconfiguring mojo connectionUrl = " + project.getScm().getConnection() );
+        getLog().debug( "Reconfiguring mojo developerConnectionUrl = " + project.getScm().getDeveloperConnection() );
     }
 
     protected File getCheckoutDirectory()
