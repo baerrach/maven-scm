@@ -23,6 +23,7 @@
       <plugin>
         <artifactId>maven-scm-plugin</artifactId>
         <configuration>
+          <project implementation="org.apache.maven.scm.plugin.stubs.CheckoutViaArtifactCoordsProjectStub"/>
           <settings implementation="org.apache.maven.settings.Settings"/>
           <localRepository>${localRepository}</localRepository>
           <connectionType>developerConnection</connectionType>

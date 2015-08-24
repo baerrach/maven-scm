@@ -30,6 +30,7 @@ import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.artifact.resolver.AbstractArtifactResolutionException;
 import org.apache.maven.artifact.resolver.ArtifactResolver;
 import org.apache.maven.model.Model;
+import org.apache.maven.model.Scm;
 import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Component;
@@ -189,8 +190,29 @@ public class CheckoutMojo
             }
         }
 
-        MavenProject project = new MavenProject( model );
-        setDeveloperConnectionUrl( project.getScm().getDeveloperConnection() );
+        // If this is the default value, then overwrite it to be the artifactId instead.
+        File defaultCheckoutDirectory = new File( project.getBuild().getDirectory(), "checkout" );
+        if ( defaultCheckoutDirectory.equals( checkoutDirectory ) )
+        {
+            checkoutDirectory = new File( artifactId );
+            getLog().debug( "Reconfiguring mojo checkoutDirectory = " + checkoutDirectory );
+        }
+
+        project = new MavenProject( model );
+        Scm scm = project.getScm();
+        if ( scm == null )
+        {
+            throw new MojoExecutionException( "Project does not contain a scm section" );
+        }
+
+        setConnectionType( "developerConnection" );
+        getLog().info( "Reconfiguring mojo connectionType = developerConnection" );
+
+        setConnectionUrl( scm.getConnection() );
+        getLog().debug( "Reconfiguring mojo connectionUrl = " + scm.getConnection() );
+
+        setDeveloperConnectionUrl( scm.getDeveloperConnection() );
+        getLog().debug( "Reconfiguring mojo developerConnectionUrl = " + scm.getDeveloperConnection() );
     }
 
     protected File getCheckoutDirectory()
@@ -265,6 +287,5 @@ public class CheckoutMojo
     {
         return checkoutResult;
     }
-
 
 }
