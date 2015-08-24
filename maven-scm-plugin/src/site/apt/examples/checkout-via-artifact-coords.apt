@@ -29,7 +29,7 @@
 Checking out a project via artifact coordinates
 
   Since 1.9.5 the option -DartifactCoords has been available for <<<scm:checkout>>>.
-  
+
   This option allows you to checkout the source code for any artifact via its <<<groupId:artifactId:version>>>
   as long as the <<<scm>>> element in the deployed <<<pom.xml>>> is valid. You do not need to provide any <<<pom.xml>>>
   file locally.
@@ -37,16 +37,23 @@ Checking out a project via artifact coordinates
 Examples
 
 * Checkout the 2.5 version of the maven-clean-plugin
-  
+
 +---------+
-   mvn scm:checkout -DartifactCoords=org.apache.maven.plugins:maven-clean-2.5 -DcheckoutDirectory=maven-clean-plugin-2.5
+   mvn scm:checkout -DartifactCoords=org.apache.maven.plugins:maven-clean-2.5
 +---------+
-  
+
 * Checkout the <<<LATEST>>> version of the maven-clean-plugin
 
   If you leave of the version part of the coordinates it will default to <<<LATEST>>>.
-  
+
 +---------+
-   mvn scm:checkout -DartifactCoords=org.apache.maven.plugins:maven-clean-plugin -DcheckoutDirectory=maven-clean-plugin
+   mvn scm:checkout -DartifactCoords=org.apache.maven.plugins:maven-clean-plugin
 +---------+
-  
+
+Known deficiencies
+
+  Not specifying -DcheckoutDirectory will use the plugin's default of <<<${project.build.directory}/checkout>>> when
+  it would make more sense to use the <<<artifactId>>> as the checkout directory.
+
+  You need to specify the groupId. This should use the plugin prefix like the rest of maven to avoid having to include
+  <<<org.apache.maven.plugins>>> and other configured prefixes.
