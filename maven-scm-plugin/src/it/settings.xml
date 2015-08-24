@@ -36,6 +36,7 @@ under the License.
           </releases>
           <snapshots>
             <enabled>true</enabled>
+            <updatePolicy>always</updatePolicy>
           </snapshots>
         </repository>
         <repository>
@@ -46,7 +47,7 @@ under the License.
             <enabled>false</enabled>
           </releases>
           <snapshots>
-            <enabled>true</enabled>
+            <enabled>false</enabled>
           </snapshots>
         </repository>
       </repositories>
@@ -59,6 +60,7 @@ under the License.
           </releases>
           <snapshots>
             <enabled>true</enabled>
+            <updatePolicy>always</updatePolicy>
           </snapshots>
         </pluginRepository>
       </pluginRepositories>
