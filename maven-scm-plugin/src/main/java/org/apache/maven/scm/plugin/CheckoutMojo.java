@@ -60,13 +60,13 @@ public class CheckoutMojo
 
     @Parameter( defaultValue = "${localRepository}", readonly = true )
     private ArtifactRepository localRepository;
-    
+
     @Parameter( defaultValue = "${project.remoteArtifactRepositories}", readonly = true, required = true )
-    protected List<ArtifactRepository> remoteRepositories;    
-    
+    protected List<ArtifactRepository> remoteRepositories;
+
     @Parameter( defaultValue = "${project}", readonly = true, required = true )
     protected MavenProject project;
-    
+
     /**
      * Use Export instead of checkout
      */
@@ -96,12 +96,12 @@ public class CheckoutMojo
      */
     @Parameter( property = "scmVersion" )
     private String scmVersion;
-    
+
     /**
      * The {@code <groupId>:<artifactId>[:<extension>[:<classifier>]]:<version>} of the artifact's SCM to checkout
-     * 
+     *
      * Only used for checking out via artifact coords.
-     * 
+     *
      * @since 1.9.5
      */
     @Parameter( property = "artifactCoords", readonly = true )
@@ -145,15 +145,21 @@ public class CheckoutMojo
         }
         groupId = tokens[0];
         artifactId = tokens[1];
-        if ( tokens.length >= 3 ) 
+        if ( tokens.length >= 3 )
         {
             version = tokens[2];
         }
-        else 
+        else
         {
             version = "LATEST";
         }
-       
+
+        getLog().info( "remoteRepositories= FOO!" );
+        for ( int i = 0; i < remoteRepositories.size(); i++ )
+        {
+          getLog().info( "remoteRepositories[ " + i + "]=" + remoteRepositories.get( i ).getClass().toString() );
+        }
+        getLog().info( "localRepository=" + localRepository.getClass().toString() );
         Artifact toDownload = artifactFactory.createProjectArtifact( groupId, artifactId, version );
         try
         {
@@ -164,7 +170,7 @@ public class CheckoutMojo
             throw new MojoExecutionException( "Couldn't download artifact: " + e.getMessage(), e );
         }
         File pomfile = toDownload.getFile();
-        
+
         Model model = null;
         FileReader reader = null;
         MavenXpp3Reader mavenreader = new MavenXpp3Reader();
@@ -174,10 +180,10 @@ public class CheckoutMojo
             model = mavenreader.read( reader );
         }
         catch ( Exception e )
-        {           
+        {
             throw new MojoExecutionException( "Could not load pom file=" + pomfile, e );
         }
-        finally 
+        finally
         {
             try
             {
@@ -188,12 +194,9 @@ public class CheckoutMojo
                 getLog().warn( "Failed to close reader: " + e.getMessage(), e );
             }
         }
-        
+
         MavenProject project = new MavenProject( model );
-        setConnectionUrl( project.getScm().getConnection() );
         setDeveloperConnectionUrl( project.getScm().getDeveloperConnection() );
-        getLog().debug( "Reconfiguring mojo connectionUrl = " + project.getScm().getConnection() );
-        getLog().debug( "Reconfiguring mojo developerConnectionUrl = " + project.getScm().getDeveloperConnection() );
     }
 
     protected File getCheckoutDirectory()
