@@ -190,9 +190,13 @@ public class CheckoutMojo
             }
         }
 
-        // If this is the default value, then overwrite it to be the artifactId instead.
+        /*
+         *  If this is the default value, then overwrite it to be the artifactId instead.
+         *  If there is no pom, then project.basedir will be null and the "checkout" can't interpolated properly
+         */
         File defaultCheckoutDirectory = new File( project.getBuild().getDirectory(), "checkout" );
-        if ( defaultCheckoutDirectory.equals( checkoutDirectory ) )
+        if ( null == project.getBasedir()
+            || defaultCheckoutDirectory.equals( checkoutDirectory ) )
         {
             checkoutDirectory = new File( artifactId );
             getLog().debug( "Reconfiguring mojo checkoutDirectory = " + checkoutDirectory );
