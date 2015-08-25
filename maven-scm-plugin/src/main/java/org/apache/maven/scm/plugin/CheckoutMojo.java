@@ -76,8 +76,14 @@ public class CheckoutMojo
 
     /**
      * The directory to checkout the sources to for the bootstrap and checkout goals.
+     * <p>
+     * <b>Default value is</b>: ${project.build.directory}/checkout
+     * </p>
+     * <p>
+     * <b>Default value (<em>when usng artifactCoords</em>) is</b>: ${artifactId}
+     * </p>
      */
-    @Parameter( property = "checkoutDirectory", defaultValue = "${project.build.directory}/checkout" )
+    @Parameter( property = "checkoutDirectory" )
     private File checkoutDirectory;
 
     /**
@@ -120,6 +126,11 @@ public class CheckoutMojo
         if ( StringUtils.isNotEmpty( artifactCoords ) )
         {
             setConnectionUrlFromArtifactCoords();
+        }
+
+        if ( checkoutDirectory == null )
+        {
+            checkoutDirectory = new File( project.getBuild().getDirectory(), "checkout" );
         }
 
         super.execute();
@@ -190,13 +201,7 @@ public class CheckoutMojo
             }
         }
 
-        /*
-         *  If this is the default value, then overwrite it to be the artifactId instead.
-         *  If there is no pom, then project.basedir will be null and the "checkout" can't interpolated properly
-         */
-        File defaultCheckoutDirectory = new File( project.getBuild().getDirectory(), "checkout" );
-        if ( null == project.getBasedir()
-            || defaultCheckoutDirectory.equals( checkoutDirectory ) )
+        if ( null == checkoutDirectory )
         {
             checkoutDirectory = new File( artifactId );
             getLog().debug( "Reconfiguring mojo checkoutDirectory = " + checkoutDirectory );
