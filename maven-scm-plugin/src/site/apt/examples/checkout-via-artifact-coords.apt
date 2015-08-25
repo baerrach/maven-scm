@@ -39,7 +39,7 @@ Examples
 * Checkout the 2.5 version of the maven-clean-plugin
 
 +---------+
-   mvn scm:checkout -DartifactCoords=org.apache.maven.plugins:maven-clean-2.5
+   mvn scm:checkout -DartifactCoords=org.apache.maven.plugins:maven-clean-plugin:2.5
 +---------+
 
 * Checkout the <<<LATEST>>> version of the maven-clean-plugin
@@ -51,9 +51,6 @@ Examples
 +---------+
 
 Known deficiencies
-
-  Not specifying -DcheckoutDirectory will use the plugin's default of <<<${project.build.directory}/checkout>>> when
-  it would make more sense to use the <<<artifactId>>> as the checkout directory.
 
   You need to specify the groupId. This should use the plugin prefix like the rest of maven to avoid having to include
   <<<org.apache.maven.plugins>>> and other configured prefixes.
