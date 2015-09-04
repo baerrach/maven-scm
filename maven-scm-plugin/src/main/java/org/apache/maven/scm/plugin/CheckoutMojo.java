@@ -22,7 +22,11 @@ package org.apache.maven.scm.plugin;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.Writer;
 import java.util.List;
+import java.util.Set;
+
+import javax.xml.stream.XMLInputFactory;
 
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.factory.ArtifactFactory;
@@ -41,8 +45,16 @@ import org.apache.maven.scm.ScmException;
 import org.apache.maven.scm.ScmFileSet;
 import org.apache.maven.scm.ScmResult;
 import org.apache.maven.scm.repository.ScmRepository;
+import org.apache.maven.shared.release.versions.DefaultVersionInfo;
+import org.codehaus.mojo.versions.api.PomHelper;
+import org.codehaus.mojo.versions.change.ProjectVersionChanger;
+import org.codehaus.mojo.versions.change.VersionChange;
+import org.codehaus.mojo.versions.rewriting.ModifiedPomXMLEventReader;
 import org.codehaus.plexus.util.FileUtils;
+import org.codehaus.plexus.util.IOUtil;
 import org.codehaus.plexus.util.StringUtils;
+import org.codehaus.plexus.util.WriterFactory;
+import org.codehaus.stax2.XMLInputFactory2;
 
 /**
  * Get a fresh copy of the latest source from the configured scm url.
@@ -115,6 +127,16 @@ public class CheckoutMojo
     private String artifactCoords;
 
     /**
+     * Set to true to checkout the project's dependency specified by {@code artifactCoords}
+     * and bump to snapshot, updating (and creating) an aggregator pom to include the dependency
+     * as a module.
+     *
+     * @since 1.9.5
+     */
+    @Parameter( property = "asSnapshot", readonly = true, defaultValue = "false" )
+    private boolean asSnapshot = false;
+
+    /**
      * allow extended mojo (ie BootStrap ) to see checkout result
      */
     private ScmResult checkoutResult;
@@ -123,6 +145,12 @@ public class CheckoutMojo
     public void execute()
         throws MojoExecutionException
     {
+        if ( asSnapshot )
+        {
+            checkoutDependencyAsSnapshot();
+            return;
+        }
+
         if ( StringUtils.isNotEmpty( artifactCoords ) )
         {
             setConnectionUrlFromArtifactCoords();
@@ -130,11 +158,18 @@ public class CheckoutMojo
 
         if ( checkoutDirectory == null )
         {
+            // set a default value. setConnectionUrlFromArtifactCoords may have already configured a default value.
             checkoutDirectory = new File( project.getBuild().getDirectory(), "checkout" );
         }
 
         super.execute();
 
+        doCheckout();
+    }
+
+    private void doCheckout()
+        throws MojoExecutionException
+    {
         //skip checkout if checkout directory is already created. See SCM-201
         checkoutResult = null;
         if ( !getCheckoutDirectory().isDirectory() || !this.skipCheckoutIfExists )
@@ -143,7 +178,8 @@ public class CheckoutMojo
         }
     }
 
-    protected void setConnectionUrlFromArtifactCoords() throws MojoExecutionException
+    protected Artifact parseArtifactCoords( String artifactCoords )
+        throws MojoExecutionException
     {
         String groupId = null;
         String artifactId = null;
@@ -151,9 +187,8 @@ public class CheckoutMojo
         String[] tokens = StringUtils.split( artifactCoords, ":" );
         if ( tokens.length < 2 || tokens.length > 5 )
         {
-            throw new MojoExecutionException(
-                "Invalid artifact, you must specify groupId:artifactId[:version][:packaging][:classifier] "
-                    + artifactCoords );
+            throw new MojoExecutionException( "Invalid artifact, you must specify groupId:artifactId[:version][:packaging][:classifier] "
+                + artifactCoords );
         }
         groupId = tokens[0];
         artifactId = tokens[1];
@@ -166,62 +201,43 @@ public class CheckoutMojo
             version = "LATEST";
         }
 
-        Artifact toDownload = artifactFactory.createProjectArtifact( groupId, artifactId, version );
+        return artifactFactory.createProjectArtifact( groupId, artifactId, version );
+    }
+
+    protected void setConnectionUrlFromArtifactCoords() throws MojoExecutionException
+    {
         try
         {
+            Artifact toDownload = parseArtifactCoords( artifactCoords );
             artifactResolver.resolve( toDownload, remoteRepositories, localRepository );
-        }
-        catch ( AbstractArtifactResolutionException  e )
-        {
-            throw new MojoExecutionException( "Couldn't download artifact: " + e.getMessage(), e );
-        }
-        File pomfile = toDownload.getFile();
 
-        Model model = null;
-        FileReader reader = null;
-        MavenXpp3Reader mavenreader = new MavenXpp3Reader();
-        try
-        {
-            reader = new FileReader( pomfile );
-            model = mavenreader.read( reader );
-        }
-        catch ( Exception e )
-        {
-            throw new MojoExecutionException( "Could not load pom file=" + pomfile, e );
-        }
-        finally
-        {
-            try
+            if ( null == checkoutDirectory )
             {
-                reader.close();
+                checkoutDirectory = new File( toDownload.getArtifactId() );
+                getLog().debug( "Reconfiguring mojo checkoutDirectory = " + checkoutDirectory );
             }
-            catch ( IOException e )
+
+            Model model = PomHelper.getRawModel( toDownload.getFile() );
+            project = new MavenProject( model );
+            Scm scm = project.getScm();
+            if ( scm == null )
             {
-                getLog().warn( "Failed to close reader: " + e.getMessage(), e );
+                throw new MojoExecutionException( "Project does not contain a scm section" );
             }
-        }
 
-        if ( null == checkoutDirectory )
+            setConnectionType( "developerConnection" );
+            getLog().info( "Reconfiguring mojo connectionType = developerConnection" );
+
+            setConnectionUrl( scm.getConnection() );
+            getLog().debug( "Reconfiguring mojo connectionUrl = " + scm.getConnection() );
+
+            setDeveloperConnectionUrl( scm.getDeveloperConnection() );
+            getLog().debug( "Reconfiguring mojo developerConnectionUrl = " + scm.getDeveloperConnection() );
+        }
+        catch ( Exception  e )
         {
-            checkoutDirectory = new File( artifactId );
-            getLog().debug( "Reconfiguring mojo checkoutDirectory = " + checkoutDirectory );
+            throw new MojoExecutionException( "Couldn't set connectionUrl from artifactCoords: " + e.getMessage(), e );
         }
-
-        project = new MavenProject( model );
-        Scm scm = project.getScm();
-        if ( scm == null )
-        {
-            throw new MojoExecutionException( "Project does not contain a scm section" );
-        }
-
-        setConnectionType( "developerConnection" );
-        getLog().info( "Reconfiguring mojo connectionType = developerConnection" );
-
-        setConnectionUrl( scm.getConnection() );
-        getLog().debug( "Reconfiguring mojo connectionUrl = " + scm.getConnection() );
-
-        setDeveloperConnectionUrl( scm.getDeveloperConnection() );
-        getLog().debug( "Reconfiguring mojo developerConnectionUrl = " + scm.getDeveloperConnection() );
     }
 
     protected File getCheckoutDirectory()
@@ -295,6 +311,104 @@ public class CheckoutMojo
     protected ScmResult getCheckoutResult()
     {
         return checkoutResult;
+    }
+
+    /**
+     * <ul>
+     *   <li>Get the pom for released version
+     *   <li>Checkout the released version
+     *   <li>Bump the checkedout version to SNAPSHOT
+     *   <li>Create (or update) the aggregator pom with the checked out dependency as a module
+     * </ul>
+     */
+    private void checkoutDependencyAsSnapshot()
+        throws MojoExecutionException
+    {
+        if ( project == null )
+        {
+            throw new MojoExecutionException( "Requires a pom.xml in the directory you are running this command from" );
+        }
+
+        if ( StringUtils.isEmpty( artifactCoords ) )
+        {
+            throw new MojoExecutionException( "Must specify artifactCoords to checkout dependency as snapshot."  );
+        }
+
+        Artifact dependency = findDependency();
+        setConnectionUrlFromArtifactCoords();
+
+        checkoutDirectory = new File( project.getBasedir(), "../" + dependency.getArtifactId() );
+        doCheckout();
+        // Update checkout to next snapshot version
+        updateArtifactToSnapshot( new File( checkoutDirectory, "pom.xml" ), dependency );
+        // Update current pom to use new snapshot version of dependency
+        // Update/Create aggregator pom for current project and checkout
+    }
+
+    private void updateArtifactToSnapshot( File pomToUpdate, Artifact artifactToUpdate )
+        throws MojoExecutionException
+    {
+        try
+        {
+            StringBuilder input = PomHelper.readXmlFile( pomToUpdate );
+            XMLInputFactory inputFactory = XMLInputFactory2.newInstance();
+            inputFactory.setProperty( XMLInputFactory2.P_PRESERVE_LOCATION, Boolean.TRUE );
+            ModifiedPomXMLEventReader newPom = new ModifiedPomXMLEventReader( input, inputFactory );
+
+            String newVersion =
+                new DefaultVersionInfo( artifactToUpdate.getVersion() ).getNextVersion().getSnapshotVersionString();
+
+            VersionChange versionChange =
+                new VersionChange( artifactToUpdate.getGroupId(), artifactToUpdate.getArtifactId(),
+                                   artifactToUpdate.getVersion(), newVersion );
+            ProjectVersionChanger changer = new ProjectVersionChanger( project.getModel(), newPom, getLog() );
+            changer.apply( versionChange );
+
+            Writer writer = WriterFactory.newXmlWriter( pomToUpdate );
+            try
+            {
+                IOUtil.copy( input.toString(), writer );
+            }
+            finally
+            {
+                IOUtil.close( writer );
+            }
+
+        }
+        catch ( Exception e )
+        {
+            throw new MojoExecutionException( e.getMessage(), e );
+        }
+    }
+
+    /**
+     * @return the depedency specified in artifactCoords
+     * @throws MojoExecutionException if the dependency does not exist in pom
+     */
+    private Artifact findDependency()
+        throws MojoExecutionException
+    {
+        Artifact toMakeSnapshot = parseArtifactCoords( artifactCoords );
+        @SuppressWarnings( "unchecked" )
+        Set<Artifact> dependencyArtifacts = project.getDependencyArtifacts();
+
+        Artifact dependency = null;
+        for ( Artifact artifact : dependencyArtifacts )
+        {
+            if ( toMakeSnapshot.getArtifactId().equals( artifact.getArtifactId() )
+                && toMakeSnapshot.getGroupId().equals( artifact.getGroupId() ) )
+            {
+                dependency = artifact;
+                break;
+            }
+        }
+
+        if ( null == dependency )
+        {
+            throw new MojoExecutionException( "Pom does not contain dependency for " + artifactCoords );
+        }
+
+        return dependency;
     }
 
 }

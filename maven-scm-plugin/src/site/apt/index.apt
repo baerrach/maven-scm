@@ -102,6 +102,8 @@ Maven SCM Plugin
 
  * {{{./examples/checkout-via-artifact-coords.html}Checking out artifact via artifact coordinates}}
 
+ * {{{./examples/checkout-as-snapshot.html}Checking out a project dependency as a snapshot}}
+
  * {{{./examples/scm-advance-features.html}Other advanced scm commands}}
 
  []

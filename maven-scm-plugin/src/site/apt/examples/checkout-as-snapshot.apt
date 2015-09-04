@@ -1,0 +1,98 @@
+ ------
+ Checkout a project dependency as a snapshot
+ ------
+ Barrie Treloar <baerrach@gmail.com>
+ ------
+ 2015-08-21
+ ------
+
+~~ Licensed to the Apache Software Foundation (ASF) under one
+~~ or more contributor license agreements.  See the NOTICE file
+~~ distributed with this work for additional information
+~~ regarding copyright ownership.  The ASF licenses this file
+~~ to you under the Apache License, Version 2.0 (the
+~~ "License"); you may not use this file except in compliance
+~~ with the License.  You may obtain a copy of the License at
+~~
+~~   http://www.apache.org/licenses/LICENSE-2.0
+~~
+~~ Unless required by applicable law or agreed to in writing,
+~~ software distributed under the License is distributed on an
+~~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+~~ KIND, either express or implied.  See the License for the
+~~ specific language governing permissions and limitations
+~~ under the License.
+
+~~ NOTE: For help with the syntax of this file, see:
+~~ http://maven.apache.org/doxia/references/apt-format.html
+
+Checkout a project dependency as a snapshot
+
+  This option speeds up the process of tracking down bugs that cross multiple dependency layers. With it you can checkout
+  the source code of a dependency, bump that version to be a SNAPSHOT, update your project's <<<pom.xml>>> to use
+  the new snapshot version, and add in the dependency as new module into the aggregator pom.
+  Automating a tedious process and making your life easier.
+
+  Available since 1.9.5, the option <<<-DasSnapshot>>> is used with <<<scm:checkout -DartifactCoords>>>.
+
+  Generally you will want to manually try the lastest version of your dependency to see if that fixes your problem.
+  If the problem still persists you will need to develop from <<<HEAD>>>. However, sometimes its necessary to develop
+  from the released version instead, perhaps for maintaining an older version of the codebase.
+
+  Unfortunately <<<-DasSnapshot>>> isn't smart enough to realise that the most recent version should be developing from <<<HEAD>>>
+  and depending on the SCM something you will need to checkout yourself. <<<-DasSnapshot>>> will always checkout a tagged release.
+
+  When the tagged release is checked out it will be as a sibling project and the parent aggregator <<<pom.xml>>> will be
+  updated to link the checkout as a <<<module>>>. The aggregator project allows you to build the current project and all its
+  snapshot dependencies with one command, which is very handy when you are chasing down bugs that exist in a dependency chain.
+
+Example
+
+* Checkout maven-jar-plugin and update some artifacts to snapshots
+
+  This example will work with the maven-jar-plugin and assume there are bugs in the archiver which will get tracked
+  down to lower layers.
+
+  First checkout maven-jar-plugin
+
++---------+
+  mvn scm:checkout -DartifactCoords=org.apache.maven.plugins:maven-jar-plugin:2.6 -DcheckoutDirectory=maven-jar-plugin
++---------+
+
+  To automatically checkout org.apache.maven:maven-archiver:2.6 as a snapshot:
+
++---------+
+   cd maven-jar-plugin
+   mvn scm:checkout -DartifactCoords=org.apache.maven:maven-archiver -DasSnapshot
++---------+
+
+  This will checkout the snapshot source into <<<../maven-archiver>>> and create <<<../pom.xml>>> to include
+  modules for <<<maven-archiver>>> and <<maven-jar-plugin>>>.
+
+  Lets further suppose that after much tracking you find the bug in org.codehaus.plexus:plexus-archiver:2.8.1.
+
+  To checkout org.codehaus.plexus:plexus-archiver:2.8.1 as a snapshot:
+
++---------+
+   cd maven-archiver
+   mvn scm:checkout -DartifactCoords=org.codehaus.plexus:plexus-archiver:2.8.1 -DasSnapshot
++---------+
+
+  Like before, this will checkout the snapshot source into <<<../plexus-archiver>>> and update <<<../pom.xml>>> to include
+  the <<<plexus-archiver>>> module.
+
+Warnings
+
+  Can't cope with checking out dependencieas that are 'submodules' of a scm root.
+
+  The features of the scm may limit possibilities for checkouts:
+
+  * Subversion can not checkout the <<<HEAD>>> revision because deployed release artfacts all refer to <<<tags>>>
+    in the path, it would only be possibly to do the checkout via deployed/installed <<<SNAPSHOT>>> artifacts,
+    or make this plugin smarte in handling urls.
+
+  * <<<TODO CHECK>>> Git may checkout the entire repository but it may not get all remote branches and tags.
+
+  []
+
+
