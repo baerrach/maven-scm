@@ -17,25 +17,37 @@
  * under the License.
  */
 
-import java.io.FileReader;
+import org.apache.maven.model.Dependency
+import org.apache.maven.model.Model
+import org.apache.maven.project.MavenProject
+import org.codehaus.mojo.versions.api.PomHelper
 
-import org.apache.maven.model.Model;
-import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
-import org.apache.maven.project.MavenProject;
-
-File buildLog = new File(basedir, 'build.log')
+File buildLog = new File( basedir, 'build.log')
 assert buildLog.exists()
 
-File archiverDirectory = new File(basedir, "../maven-archiver")
+File archiverDirectory = new File( basedir, "../maven-archiver")
 assert archiverDirectory.exists()
 
 File archiverPom = new File( archiverDirectory, "pom.xml" )
 assert archiverPom.exists()
 
-MavenXpp3Reader mavenreader = new MavenXpp3Reader()
-FileReader reader = new FileReader( archiverPom )
-Model model = mavenreader.read( reader )
+Model model = PomHelper.getRawModel( archiverPom )
+MavenProject archiverProject = new MavenProject( model )
+assert "org.apache.maven" == archiverProject.getGroupId()
+assert "maven-archiver" == archiverProject.getArtifactId()
+assert "2.7-SNAPSHOT" == archiverProject.getVersion()
+
+File projectPom = new File( basedir, "pom.xml" )
+println projectPom.getCanonicalPath()
+assert projectPom.exists()
+model = PomHelper.getRawModel( projectPom )
 MavenProject project = new MavenProject( model )
-assert "org.apache.maven" == project.getGroupId()
-assert "maven-archiver" == project.getArtifactId()
-assert "2.7-SNAPSHOT" == project.getVersion()
+Dependency mavenArchiverDependency = new Dependency()
+mavenArchiverDependency.setGroupId( "org.apache.maven" )
+mavenArchiverDependency.setArtifactId( "maven-archiver" )
+mavenArchiverDependency.setVersion( "2.7-SNAPSHOT" )
+assert null != project.getDependencies().find {
+    mavenArchiverDependency.getGroupId().equals( it.getGroupId() ) &&
+    mavenArchiverDependency.getArtifactId().equals( it.getArtifactId() ) &&
+    mavenArchiverDependency.getVersion().equals( it.getVersion() )
+}

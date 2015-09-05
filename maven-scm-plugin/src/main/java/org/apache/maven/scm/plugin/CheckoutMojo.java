@@ -20,7 +20,6 @@ package org.apache.maven.scm.plugin;
  */
 
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.List;
@@ -31,11 +30,9 @@ import javax.xml.stream.XMLInputFactory;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.factory.ArtifactFactory;
 import org.apache.maven.artifact.repository.ArtifactRepository;
-import org.apache.maven.artifact.resolver.AbstractArtifactResolutionException;
 import org.apache.maven.artifact.resolver.ArtifactResolver;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Scm;
-import org.apache.maven.model.io.xpp3.MavenXpp3Reader;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Component;
 import org.apache.maven.plugins.annotations.Mojo;
@@ -47,6 +44,8 @@ import org.apache.maven.scm.ScmResult;
 import org.apache.maven.scm.repository.ScmRepository;
 import org.apache.maven.shared.release.versions.DefaultVersionInfo;
 import org.codehaus.mojo.versions.api.PomHelper;
+import org.codehaus.mojo.versions.change.AbstractVersionChanger;
+import org.codehaus.mojo.versions.change.DependencyVersionChanger;
 import org.codehaus.mojo.versions.change.ProjectVersionChanger;
 import org.codehaus.mojo.versions.change.VersionChange;
 import org.codehaus.mojo.versions.rewriting.ModifiedPomXMLEventReader;
@@ -187,8 +186,10 @@ public class CheckoutMojo
         String[] tokens = StringUtils.split( artifactCoords, ":" );
         if ( tokens.length < 2 || tokens.length > 5 )
         {
+            // CHECKSTYLE_OFF: LineLength
             throw new MojoExecutionException( "Invalid artifact, you must specify groupId:artifactId[:version][:packaging][:classifier] "
                 + artifactCoords );
+            // CHECKSTYLE_ON: LineLength
         }
         groupId = tokens[0];
         artifactId = tokens[1];
@@ -204,6 +205,12 @@ public class CheckoutMojo
         return artifactFactory.createProjectArtifact( groupId, artifactId, version );
     }
 
+    /**
+     * Reconfigure this mojo's <code>connectionType</code>, <code>connectionUrl</code>,
+     * <code>developerConnectionUrl</code> from the artifact coords' SCM section.
+     *
+     * @throws MojoExecutionException failures
+     */
     protected void setConnectionUrlFromArtifactCoords() throws MojoExecutionException
     {
         try
@@ -213,13 +220,13 @@ public class CheckoutMojo
 
             if ( null == checkoutDirectory )
             {
-                checkoutDirectory = new File( toDownload.getArtifactId() );
+                checkoutDirectory = new File( this.getBasedir(), toDownload.getArtifactId() );
                 getLog().debug( "Reconfiguring mojo checkoutDirectory = " + checkoutDirectory );
             }
 
             Model model = PomHelper.getRawModel( toDownload.getFile() );
-            project = new MavenProject( model );
-            Scm scm = project.getScm();
+            MavenProject p = new MavenProject( model );
+            Scm scm = p.getScm();
             if ( scm == null )
             {
                 throw new MojoExecutionException( "Project does not contain a scm section" );
@@ -244,7 +251,7 @@ public class CheckoutMojo
     {
         if ( this.checkoutDirectory.getPath().contains( "${project.basedir}" ) )
         {
-            //project.basedir is not set under maven 3.x when run without a project
+            // project.basedir is not set under maven 3.x when run without a project
             this.checkoutDirectory = new File( this.getBasedir(), "target/checkout" );
         }
         return this.checkoutDirectory;
@@ -334,40 +341,91 @@ public class CheckoutMojo
             throw new MojoExecutionException( "Must specify artifactCoords to checkout dependency as snapshot."  );
         }
 
-        Artifact dependency = findDependency();
-        setConnectionUrlFromArtifactCoords();
+        try
+        {
+            Artifact dependency = findDependency();
+            setConnectionUrlFromArtifactCoords();
 
-        checkoutDirectory = new File( project.getBasedir(), "../" + dependency.getArtifactId() );
-        doCheckout();
-        // Update checkout to next snapshot version
-        updateArtifactToSnapshot( new File( checkoutDirectory, "pom.xml" ), dependency );
-        // Update current pom to use new snapshot version of dependency
-        // Update/Create aggregator pom for current project and checkout
+            checkoutDirectory = new File( this.getBasedir(), "../" + dependency.getArtifactId() );
+            getLog().debug( "Reconfiguring mojo checkoutDirectory = " + checkoutDirectory );
+            doCheckout();
+
+            // Update checkout to next snapshot version
+            // CHECKSTYLE_OFF: LineLength
+            String newVersion =
+                            new DefaultVersionInfo( dependency.getVersion() ).getNextVersion().getSnapshotVersionString();
+            // CHECKSTYLE_ON: LineLength
+            VersionChange versionChange =
+                            new VersionChange( dependency.getGroupId(), dependency.getArtifactId(),
+                                               dependency.getVersion(), newVersion );
+            File checkedOutPom = new File( checkoutDirectory, "pom.xml" );
+            updateCheckoutToSnapshot( checkedOutPom, versionChange );
+
+            // Update current pom to use new snapshot version of dependency
+            File projectPom = new File( this.getBasedir(), "pom.xml" );
+            updateProjectToUseNewSnapshot( projectPom, versionChange );
+
+            // Update/Create aggregator pom for current project and checkout
+        }
+        catch ( Exception e )
+        {
+            throw new MojoExecutionException( "Unable to checkout dependency as snapshot", e );
+        }
     }
 
-    private void updateArtifactToSnapshot( File pomToUpdate, Artifact artifactToUpdate )
+    private void updateProjectToUseNewSnapshot( File pom, VersionChange versionChange )
+        throws MojoExecutionException, IOException
+    {
+        ModifiedPomXMLEventReader newPom = newModifiablePom( pom );
+        Model model = PomHelper.getRawModel( pom );
+        MavenProject p = new MavenProject( model );
+
+        DependencyVersionChanger changer = new DependencyVersionChanger( p.getModel(), newPom, getLog() );
+        applyChangesToPom( pom, newPom, changer, versionChange );
+
+    }
+
+    private void updateCheckoutToSnapshot( File pom, VersionChange versionChange )
+        throws MojoExecutionException, IOException
+    {
+        ModifiedPomXMLEventReader newPom = newModifiablePom( pom );
+        Model model = PomHelper.getRawModel( pom );
+        MavenProject p = new MavenProject( model );
+
+        ProjectVersionChanger changer = new ProjectVersionChanger( p.getModel(), newPom, getLog() );
+        applyChangesToPom( pom, newPom, changer, versionChange );
+    }
+
+    private ModifiedPomXMLEventReader newModifiablePom( File pom )
         throws MojoExecutionException
     {
         try
         {
-            StringBuilder input = PomHelper.readXmlFile( pomToUpdate );
+            StringBuilder input = PomHelper.readXmlFile( pom );
             XMLInputFactory inputFactory = XMLInputFactory2.newInstance();
             inputFactory.setProperty( XMLInputFactory2.P_PRESERVE_LOCATION, Boolean.TRUE );
             ModifiedPomXMLEventReader newPom = new ModifiedPomXMLEventReader( input, inputFactory );
+            return newPom;
+        }
+        catch ( Exception e )
+        {
+            throw new MojoExecutionException( "Unable to create modifiable pom", e );
+        }
+    }
 
-            String newVersion =
-                new DefaultVersionInfo( artifactToUpdate.getVersion() ).getNextVersion().getSnapshotVersionString();
-
-            VersionChange versionChange =
-                new VersionChange( artifactToUpdate.getGroupId(), artifactToUpdate.getArtifactId(),
-                                   artifactToUpdate.getVersion(), newVersion );
-            ProjectVersionChanger changer = new ProjectVersionChanger( project.getModel(), newPom, getLog() );
+    private void applyChangesToPom( File pom, ModifiedPomXMLEventReader newPom, AbstractVersionChanger changer,
+                                    VersionChange versionChange )
+        throws MojoExecutionException
+    {
+        try
+        {
+            getLog().debug( "Applying changes to pom.xml=" + pom.getCanonicalPath() );
             changer.apply( versionChange );
 
-            Writer writer = WriterFactory.newXmlWriter( pomToUpdate );
+            Writer writer = WriterFactory.newXmlWriter( pom );
             try
             {
-                IOUtil.copy( input.toString(), writer );
+                IOUtil.copy( newPom.asStringBuilder().toString(), writer );
             }
             finally
             {
@@ -382,7 +440,7 @@ public class CheckoutMojo
     }
 
     /**
-     * @return the depedency specified in artifactCoords
+     * @return the dependency specified in artifactCoords
      * @throws MojoExecutionException if the dependency does not exist in pom
      */
     private Artifact findDependency()
