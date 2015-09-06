@@ -52,5 +52,8 @@ Examples
 
 Known deficiencies
 
-  You need to specify the groupId. This should use the plugin prefix like the rest of maven to avoid having to include
-  <<<org.apache.maven.plugins>>> and other configured prefixes.
+  Does not yet support {{{https://maven.apache.org/guides/introduction/introduction-to-plugin-prefix-mapping.html}plugin prefixes}}.
+  You need to specify the groupId even if it is one defined in Maven's <<<pluginGroups>>> (e.g. <<<org.apache.maven.plugins>>>, <<<org.codehaus.mojo>>>)
+
+  Does not yet support conventional artifact ID formats, e.g. <<<maven-${prefix}-plugin>>> and <<<${prefix}-maven-plugin>>>.
+  You need to specify the full artifactId.

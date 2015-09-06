@@ -30,7 +30,7 @@ Checkout a project dependency as a snapshot
 
   This option speeds up the process of tracking down bugs that cross multiple dependency layers. With it you can checkout
   the source code of a dependency, bump that version to be a SNAPSHOT, update your project's <<<pom.xml>>> to use
-  the new snapshot version, and add in the dependency as new module into the aggregator pom.
+  the new snapshot version, and add in the dependency as a new module into the aggregator pom.
   Automating a tedious process and making your life easier.
 
   Available since 1.9.5, the option <<<-DasSnapshot>>> is used with <<<scm:checkout -DartifactCoords>>>.
@@ -48,7 +48,7 @@ Checkout a project dependency as a snapshot
 
 Example
 
-* Checkout maven-jar-plugin and update some artifacts to snapshots
+* Checkout maven-jar-plugin and update some dependency to snapshot
 
   This example will work with the maven-jar-plugin and assume there are bugs in the archiver which will get tracked
   down to lower layers.
@@ -56,26 +56,26 @@ Example
   First checkout maven-jar-plugin
 
 +---------+
-  mvn scm:checkout -DartifactCoords=org.apache.maven.plugins:maven-jar-plugin:2.6 -DcheckoutDirectory=maven-jar-plugin
+  mvn scm:checkout -DartifactCoords=org.apache.maven.plugins:maven-jar-plugin:2.6
 +---------+
 
-  To automatically checkout org.apache.maven:maven-archiver:2.6 as a snapshot:
+  After some tinkering you find the bug in maven-archviver, to checkout
+  org.apache.maven:maven-archiver:2.6 as a snapshot:
 
 +---------+
    cd maven-jar-plugin
    mvn scm:checkout -DartifactCoords=org.apache.maven:maven-archiver -DasSnapshot
 +---------+
 
-  This will checkout the snapshot source into <<<../maven-archiver>>> and create <<<../pom.xml>>> to include
-  modules for <<<maven-archiver>>> and <<maven-jar-plugin>>>.
+  This will use the version defined in the pom's dependency section and checkout the snapshot source into
+  <<<../maven-archiver>>> and create <<<../pom.xml>>> to include modules for <<<maven-archiver>>> and <<maven-jar-plugin>>>.
 
-  Lets further suppose that after much tracking you find the bug in org.codehaus.plexus:plexus-archiver:2.8.1.
-
-  To checkout org.codehaus.plexus:plexus-archiver:2.8.1 as a snapshot:
+  Lets further suppose that after much tracking you find the bug in plexus-archiver,
+  to checkout org.codehaus.plexus:plexus-archiver:2.8.1 as a snapshot:
 
 +---------+
    cd maven-archiver
-   mvn scm:checkout -DartifactCoords=org.codehaus.plexus:plexus-archiver:2.8.1 -DasSnapshot
+   mvn scm:checkout -DartifactCoords=org.codehaus.plexus:plexus-archiver -DasSnapshot
 +---------+
 
   Like before, this will checkout the snapshot source into <<<../plexus-archiver>>> and update <<<../pom.xml>>> to include
@@ -83,13 +83,13 @@ Example
 
 Warnings
 
-  Can't cope with checking out dependencieas that are 'submodules' of a scm root.
+  Can't cope with checking out dependencies that are 'submodules' of a scm root.
 
   The features of the scm may limit possibilities for checkouts:
 
   * Subversion can not checkout the <<<HEAD>>> revision because deployed release artfacts all refer to <<<tags>>>
     in the path, it would only be possibly to do the checkout via deployed/installed <<<SNAPSHOT>>> artifacts,
-    or make this plugin smarte in handling urls.
+    or make this plugin smarter in handling urls.
 
   * <<<TODO CHECK>>> Git may checkout the entire repository but it may not get all remote branches and tags.
 
