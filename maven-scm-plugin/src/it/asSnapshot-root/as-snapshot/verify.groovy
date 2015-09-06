@@ -25,38 +25,48 @@ import org.codehaus.mojo.versions.api.PomHelper
 File buildLog = new File( basedir, 'build.log')
 assert buildLog.exists()
 
-File archiverDirectory = new File( basedir, "../maven-archiver")
-assert archiverDirectory.exists()
+File plexusArchiverDirectory = new File( basedir, "../plexus-archiver")
+assert plexusArchiverDirectory.exists()
+File plexusArchiverPom = new File( plexusArchiverDirectory, "pom.xml" )
+assert plexusArchiverPom.exists()
+Model model = PomHelper.getRawModel( plexusArchiverPom )
+MavenProject plexusArchiverProject = new MavenProject( model )
+assert "org.codehaus.plexus" == plexusArchiverProject.getGroupId()
+assert "plexus-archiver" == plexusArchiverProject.getArtifactId()
+assert "2.8.2-SNAPSHOT" == plexusArchiverProject.getVersion()
 
-File archiverPom = new File( archiverDirectory, "pom.xml" )
-assert archiverPom.exists()
-
-Model model = PomHelper.getRawModel( archiverPom )
-MavenProject archiverProject = new MavenProject( model )
-assert "org.apache.maven" == archiverProject.getGroupId()
-assert "maven-archiver" == archiverProject.getArtifactId()
-assert "2.7-SNAPSHOT" == archiverProject.getVersion()
+File mavenArchiverDirectory = new File( basedir, "../maven-archiver")
+assert mavenArchiverDirectory.exists()
+File mavenArchiverPom = new File( mavenArchiverDirectory, "pom.xml" )
+assert mavenArchiverPom.exists()
+model = PomHelper.getRawModel( mavenArchiverPom )
+MavenProject mavenArchiverProject = new MavenProject( model )
+assert "org.apache.maven" == mavenArchiverProject.getGroupId()
+assert "maven-archiver" == mavenArchiverProject.getArtifactId()
+assert "2.7-SNAPSHOT" == mavenArchiverProject.getVersion()
+assert null != mavenArchiverProject.getDependencies().find {
+    "org.codehaus.plexus" == it.getGroupId()  &&
+    "plexus-archiver" == it.getArtifactId() &&
+    "2.8.2-SNAPSHOT" == it.getVersion()
+}
 
 File projectPom = new File( basedir, "pom.xml" )
 assert projectPom.exists()
 model = PomHelper.getRawModel( projectPom )
 MavenProject project = new MavenProject( model )
-Dependency mavenArchiverDependency = new Dependency()
-mavenArchiverDependency.setGroupId( "org.apache.maven" )
-mavenArchiverDependency.setArtifactId( "maven-archiver" )
-mavenArchiverDependency.setVersion( "2.7-SNAPSHOT" )
 assert null != project.getDependencies().find {
-    mavenArchiverDependency.getGroupId().equals( it.getGroupId() ) &&
-    mavenArchiverDependency.getArtifactId().equals( it.getArtifactId() ) &&
-    mavenArchiverDependency.getVersion().equals( it.getVersion() )
+    "org.apache.maven" == it.getGroupId() &&
+    "maven-archiver" == it.getArtifactId() &&
+    "2.7-SNAPSHOT" == it.getVersion()
 }
 
-File modulePom = new File( basedir, "../pom.xml" )
-assert modulePom.exists()
-model = PomHelper.getRawModel( modulePom )
-MavenProject moduleProject = new MavenProject( model )
-List modules = moduleProject.modules
-assert 0 != modules.size()
-assert "maven-archiver" == modules.get( 0 )
-assert "as-snapshot" == modules.get( 1 )
+File aggregatorPom = new File( basedir, "../pom.xml" )
+assert aggregatorPom.exists()
+model = PomHelper.getRawModel( aggregatorPom )
+MavenProject aggregatorProject = new MavenProject( model )
+List modules = aggregatorProject.modules
+assert 3 == modules.size()
+assert "plexus-archiver" == modules.get( 0 )
+assert "maven-archiver" == modules.get( 1 )
+assert "as-snapshot" == modules.get( 2 )
 

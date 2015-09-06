@@ -416,10 +416,10 @@ public class CheckoutMojo
             // Check that the aggregator pom was created by this plugin
             Model model = PomHelper.getRawModel( pom );
             MavenProject p = new MavenProject( model );
-            if ( AGGREGATOR_POM_GROUP_ID.equals( p.getGroupId() ) )
+            if ( ! AGGREGATOR_POM_GROUP_ID.equals( p.getGroupId() ) )
             {
-                throw new MojoExecutionException( "Aggregator pom found did not have expected groupId="
-                    + AGGREGATOR_POM_GROUP_ID + " in " + pom.getPath() );
+                throw new MojoExecutionException( "Aggregator pom " + pom.getCanonicalPath() + " had groupId="
+                    + p.getGroupId() + " instead of " + AGGREGATOR_POM_GROUP_ID );
             }
         }
     }
