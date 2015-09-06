@@ -20,7 +20,9 @@ package org.apache.maven.scm.plugin;
  */
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Writer;
 import java.util.List;
 import java.util.Set;
@@ -41,6 +43,7 @@ import org.apache.maven.project.MavenProject;
 import org.apache.maven.scm.ScmException;
 import org.apache.maven.scm.ScmFileSet;
 import org.apache.maven.scm.ScmResult;
+import org.apache.maven.scm.plugin.change.AddModuleChanger;
 import org.apache.maven.scm.repository.ScmRepository;
 import org.apache.maven.shared.release.versions.DefaultVersionInfo;
 import org.codehaus.mojo.versions.api.PomHelper;
@@ -139,6 +142,8 @@ public class CheckoutMojo
      * allow extended mojo (ie BootStrap ) to see checkout result
      */
     private ScmResult checkoutResult;
+
+    private static final String AGGREGATOR_POM_GROUP_ID = "_delete_me.aggregator";
 
     /** {@inheritDoc} */
     public void execute()
@@ -366,11 +371,70 @@ public class CheckoutMojo
             updateProjectToUseNewSnapshot( projectPom, versionChange );
 
             // Update/Create aggregator pom for current project and checkout
+            File aggregatorPom = new File( this.getBasedir(), "../pom.xml" );
+            createAggregatorPom( aggregatorPom, project.getArtifactId() );
+            addModule( aggregatorPom, dependency.getArtifactId() );
         }
         catch ( Exception e )
         {
             throw new MojoExecutionException( "Unable to checkout dependency as snapshot", e );
         }
+    }
+
+    private void createAggregatorPom( File pom, String artifactId )
+        throws MojoExecutionException, IOException
+    {
+        if ( ! pom.exists() )
+        {
+            String resource = "asSnapshot-pom.xml";
+
+            InputStream resourceAsStream = CheckoutMojo.class.getClassLoader().getResourceAsStream( resource );
+            String pomTemplate = null;
+            try
+            {
+                pomTemplate =  IOUtil.toString( resourceAsStream );
+            }
+            finally
+            {
+                IOUtil.close( resourceAsStream );
+            }
+
+            pomTemplate = pomTemplate.replaceAll( "\\{\\{artifactId\\}\\}", artifactId );
+
+            Writer writer = new FileWriter( pom );
+            try
+            {
+                IOUtil.copy( pomTemplate.toString(), writer );
+            }
+            finally
+            {
+                IOUtil.close( writer );
+            }
+        }
+        else
+        {
+            // Check that the aggregator pom was created by this plugin
+            Model model = PomHelper.getRawModel( pom );
+            MavenProject p = new MavenProject( model );
+            if ( AGGREGATOR_POM_GROUP_ID.equals( p.getGroupId() ) )
+            {
+                throw new MojoExecutionException( "Aggregator pom found did not have expected groupId="
+                    + AGGREGATOR_POM_GROUP_ID + " in " + pom.getPath() );
+            }
+        }
+    }
+
+    private void addModule( File pom, String moduleName )
+        throws MojoExecutionException, IOException
+    {
+        ModifiedPomXMLEventReader newPom = newModifiablePom( pom );
+        Model model = PomHelper.getRawModel( pom );
+        MavenProject p = new MavenProject( model );
+
+        VersionChange versionChange =
+                        new VersionChange( null, moduleName, null, null );
+        AddModuleChanger changer = new AddModuleChanger( p.getModel(), newPom, getLog() );
+        applyChangesToPom( pom, newPom, changer, versionChange );
     }
 
     private void updateProjectToUseNewSnapshot( File pom, VersionChange versionChange )

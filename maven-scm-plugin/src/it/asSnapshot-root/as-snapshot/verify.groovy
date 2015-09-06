@@ -38,7 +38,6 @@ assert "maven-archiver" == archiverProject.getArtifactId()
 assert "2.7-SNAPSHOT" == archiverProject.getVersion()
 
 File projectPom = new File( basedir, "pom.xml" )
-println projectPom.getCanonicalPath()
 assert projectPom.exists()
 model = PomHelper.getRawModel( projectPom )
 MavenProject project = new MavenProject( model )
@@ -51,3 +50,13 @@ assert null != project.getDependencies().find {
     mavenArchiverDependency.getArtifactId().equals( it.getArtifactId() ) &&
     mavenArchiverDependency.getVersion().equals( it.getVersion() )
 }
+
+File modulePom = new File( basedir, "../pom.xml" )
+assert modulePom.exists()
+model = PomHelper.getRawModel( modulePom )
+MavenProject moduleProject = new MavenProject( model )
+List modules = moduleProject.modules
+assert 0 != modules.size()
+assert "maven-archiver" == modules.get( 0 )
+assert "as-snapshot" == modules.get( 1 )
+
